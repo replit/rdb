@@ -17,6 +17,8 @@ import (
 )
 
 const (
+	tokenIdle    = 0xF8 // number of seconds since the object stored at the specified key is idle
+	tokenFreq    = 0xF9 // logarithmic access frequency counter of the object stored at the specified key
 	tokenAUX     = 0xFA // information about the RDB generated
 	tokenResize  = 0xFB // hint about the size of the keys in the currently selected database
 	tokenExpMSec = 0xFC // expiry time in ms
@@ -29,6 +31,8 @@ const (
 const (
 	SkipMeta = 1 << iota
 	SkipExpiry
+	SkipIdle
+	SkipFreq
 	SkipValue
 	SkipAll
 )
@@ -124,7 +128,7 @@ func Parse(r Reader, opts ...ParseOption) error {
 	if err != nil {
 		return err
 	}
-	if v < 1 || v > 8 {
+	if v < 1 || v > 9 {
 		return errors.WithStack(ErrUnsupportedRDB)
 	}
 	p.version = version
@@ -478,6 +482,8 @@ func (p *Parser) readLength(withEncoding bool) (int, bool, error) {
 func (p *Parser) Parse() error {
 	var (
 		exp             = -1
+		idle            = -1
+		freq            = -1
 		currentDB       = DB{p: p}
 		currentKey      = Key{p: p}
 		currentType     = Type{p: p}
@@ -538,6 +544,24 @@ func (p *Parser) Parse() error {
 				fmt.Printf("AUX: %s: %s\n", key, value)
 			}
 
+		case tokenIdle:
+			i, _, err := p.readLength(false)
+			if err != nil {
+				return err
+			}
+			if !p.skipStage(SkipIdle, SkipAll) {
+				idle = i
+			}
+
+		case tokenFreq:
+			f, _, err := p.readLength(false)
+			if err != nil {
+				return err
+			}
+			if !p.skipStage(SkipFreq, SkipAll) {
+				freq = f
+			}
+
 		case tokenResize:
 			dbSize, _, err := p.readLength(false)
 			if err != nil {
@@ -588,12 +612,16 @@ func (p *Parser) Parse() error {
 			}
 			currentKey.Key = key
 			currentKey.Expiry = exp
+			currentKey.Idle = idle
+			currentKey.Freq = freq
 			currentKey.Encoding = b
 			currentKey.memory = p.getMemory() + _overhead.top(exp)
 			if p.key(currentKey) {
 				return nil
 			}
 			exp = -1
+			idle = -1
+			freq = -1
 
 			p.skipStage(SkipValue, SkipAll)
 			switch b {

@@ -50,6 +50,8 @@ type Key struct {
 	Encoding byte
 	DB       int
 	Expiry   int
+	Idle     int
+	Freq     int
 	Key      string
 
 	p      *Parser

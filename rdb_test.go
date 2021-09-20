@@ -84,6 +84,30 @@ func initTestCases() {
 		validators: []validator{quicklist},
 	})
 
+	version9Idle := &keysWithIdleFilter{
+		want: map[string]int{
+			"foo": 9,
+		},
+	}
+	add(testParseCase{
+		want:       nil,
+		file:       "testdata/dumps/rdb_version_9_with_idle.rdb",
+		options:    []ParseOption{WithFilter(version9Idle)},
+		validators: []validator{version9Idle},
+	})
+
+	version9Freq := &keysWithFreqFilter{
+		want: map[string]int{
+			"foo": 5,
+		},
+	}
+	add(testParseCase{
+		want:       nil,
+		file:       "testdata/dumps/rdb_version_9_with_freq.rdb",
+		options:    []ParseOption{WithFilter(version9Freq)},
+		validators: []validator{version9Freq},
+	})
+
 	version8 := &sortedsetFilter{
 		want: map[string]float64{
 			"finalfield": 2.718,
@@ -438,6 +462,70 @@ func (f *keysWithExpiryFilter) reset() {
 }
 
 func (f *keysWithExpiryFilter) validate(t *testing.T) {
+	for k, v := range f.want {
+		if g, ok := f.got[k]; !ok || g != v {
+			t.Fatalf("key: %v, want: %v, got: %v", k, v, g)
+		}
+	}
+}
+
+// keys with idle
+
+type keysWithIdleFilter struct {
+	testEmptyFilter
+
+	got  map[string]int
+	want map[string]int
+}
+
+func (f *keysWithIdleFilter) String(s *String) {
+	f.Lock()
+	defer f.Unlock()
+	if f.got == nil {
+		f.got = make(map[string]int)
+	}
+	f.got[s.Key.Key] = s.Key.Idle
+}
+
+func (f *keysWithIdleFilter) reset() {
+	for k := range f.got {
+		delete(f.got, k)
+	}
+}
+
+func (f *keysWithIdleFilter) validate(t *testing.T) {
+	for k, v := range f.want {
+		if g, ok := f.got[k]; !ok || g != v {
+			t.Fatalf("key: %v, want: %v, got: %v", k, v, g)
+		}
+	}
+}
+
+// keys with freq
+
+type keysWithFreqFilter struct {
+	testEmptyFilter
+
+	got  map[string]int
+	want map[string]int
+}
+
+func (f *keysWithFreqFilter) String(s *String) {
+	f.Lock()
+	defer f.Unlock()
+	if f.got == nil {
+		f.got = make(map[string]int)
+	}
+	f.got[s.Key.Key] = s.Key.Freq
+}
+
+func (f *keysWithFreqFilter) reset() {
+	for k := range f.got {
+		delete(f.got, k)
+	}
+}
+
+func (f *keysWithFreqFilter) validate(t *testing.T) {
 	for k, v := range f.want {
 		if g, ok := f.got[k]; !ok || g != v {
 			t.Fatalf("key: %v, want: %v, got: %v", k, v, g)
