@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/matthewjhe/rdb"
+	"github.com/replit/rdb"
 )
 
 var (

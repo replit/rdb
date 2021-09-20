@@ -8,7 +8,7 @@ The basic use case is very simple, just implements Filter interface and pass it 
 	package main
 
 	import (
-	    "github.com/matthewjhe/rdb"
+	    "github.com/replit/rdb"
 	)
 
 	func (f filter) Key(k rdb.Key) bool { return false }
@@ -97,4 +97,4 @@ Note that the abort action is taking effect immediately when the function return
 	    return true
 	}
 */
-package rdb // import "github.com/matthewjhe/rdb"
+package rdb // import "github.com/replit/rdb"
